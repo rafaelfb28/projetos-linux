@@ -1,0 +1,34 @@
+#!/bin/bash
+
+cd /home/SAAM-SPED/bkp
+echo "" >> /home/bkp_dedicado/log.txt;
+echo "$(date +%H:%M:%S) - Inicio do processo de download das portas com data $(date +%d-%m-%y)" >> /home/bkp_dedicado/log.txt;
+for porta in $(ls -l | grep -v total | grep 5 | cut -d':' -f2 | cut -d' ' -f2);
+do
+		echo "" >> /home/bkp_dedicado/log.txt;
+		echo "$(date +%H:%M:%S) - Realizando download da porta $porta" >> /home/bkp_dedicado/log.txt;
+#		Copiá de teste
+#		cp -r $porta /home/diretorio_salinha/ &>> /home/bkp_dedicado/log.txt;
+		sshpass -p "user_bkp_2022" scp -rp -P 4922 $porta user_bkp@189.15.3.32:/BKP_DEDICADOS/BKP_DEDICADO_4/$(date +%d-%m-%y) &>> /home/bkp_dedicado/log.txt;
+		var=$(echo $?)
+		if [ $var == 0 ];
+		then
+			echo "" >> /home/bkp_dedicado/log.txt;
+			echo "$(date +%H:%M:%S) - Download realizado com sucesso" >> /home/bkp_dedicado/log.txt;
+			echo "" >> /home/bkp_dedicado/log.txt;
+			echo "$(date +%H:%M:%S) - Removendo porta $porta" >> /home/bkp_dedicado/log.txt;
+			rm -rf $porta &>> /home/bkp_dedicado/log.txt;
+		elif [ $var == 1 ] || [ $var == 2 ];
+		then
+			echo "" >> /home/bkp_dedicado/log.txt;
+			echo "$(date +%H:%M:%S) - Erro ao realizar download da porta $porta" >> /home/bkp_dedicado/log.txt;
+		fi;
+done
+echo "" >> /home/bkp_dedicado/log.txt;
+echo "$(date +%H:%M:%S) - Fim do processo de download das portas com data $(date +%d-%m-%y)" >> /home/bkp_dedicado/log.txt;
+
+
+
+
+
+

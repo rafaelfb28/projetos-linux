@@ -1,0 +1,12 @@
+	wal_level = hot_standby
+	archive_mode = on
+	archive_command = 'test ! -f /var/lib/postgresql/pg_log_archive/%f && cp %p /var/lib/postgresql/pg_log_archive/%f'
+	max_wal_senders = 2
+	
+	mkdir /var/lib/postgresql/pg_log_archive 
+	chown -R postgres.postgres /var/lib/postgresql/pg_log_archive
+	chmod 700 /var/lib/postgresql/pg_log_archive/
+
+	PGPASSWORD="10100306@"  /usr/bin/pg_basebackup -h127.0.0.1 -p 5435 -U sisaudconadaoavestruz@0620181.0.31 -D backup -Ft -z -P
+	
+	restore_command = 'cp /var/lib/postgresql/pg_log_archive/%f %p'
