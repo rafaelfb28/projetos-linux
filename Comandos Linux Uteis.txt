@@ -1,0 +1,196 @@
+du -lh --max-depth=1 --- mostra o tamanho total de todos arquivos mais o tamanho total de todos juntos
+
+du -sch * --- mostra o tamanho de cada diretorio
+
+/*Compartilhamento de pastas entre Windows e Linux*/
+
+mount -t cifs //192.168.1.201/Compartilhado/Backups-SAAM -o username=Administrator,password=mg@12345 /mnt/BKP_SAAM  --- montando pasta compartilhada
+
+echo "//192.168.1.201/Compartilhado/Backups-SAAM /mnt/BKP_SAAM cifs rw,username=Administrator,password=mg@12345 0 0" >> /etc/fstab --- colocando montagem da pasta compartilhada como permanente
+
+apt install cifs-utils
+
+mkdir /mnt/share
+
+mount.cifs //Windows/SharedFolder /mnt/share -o user=account
+
+ex:
+mount.cifs //192.168.2.20/publica /dados -o user=crsisaudcon,password=072011@123
+
+Com dominio:
+mount -t cifs -o username=cs-ws-s-CIGAM9080P,password=KIPg9aia,domain=vcn.ds.volvo.net //brctax1004.rds.volvo.com/009080$ /mnt/XMLSAAM
+
+colocar como permanente:
+//192.168.2.20/publica /dados cifs user=crsisaudcon,password=072011@123 0 0
+//10.1.1.5/arquivos/NFE-SAAM/ /mnt/SAAM/ cifs username=srvsaam,password=Sa781325@#$ 0 0
+
+/**/
+
+ssh -p 4922 root@192.168.1.7 --- conectar a outro servidor linux via SSH
+
+scp -P 2555 arquivo.txt root@1.2.3.4:/usr/local/src/ --- copiar arquivo de outro servidor linux via scp
+
+sshpass -p "072011@123" scp -r -P 4922 root@187.108.200.43:/home/SAAM-SPED/bkp/ /home --- copiar arquivo de outro servidor linux via scp fixando a senha 
+
+rsync [modificadores opcionais] [USUÁRIO@]HOST:SRC [DEST]
+
+rsync [modificadores opcionais] SRC [USUÁRIO@]HOST:[DEST] --- copiar arquivo de outro servidor linux via sync
+
+cp -p --- copia um arquivo com as permissões originais
+
+cp -pr --- copia um diretorio com as permissões originais fazendo recursividade
+
+lsb_release -a --- versão do SO
+
+ls -lht | more --- ordenar por data
+
+cat /sys/block/sda/queue/rotational
+
+Se o resultado for = 0 você tem um SSD
+Se o resultado for = 1 você tem um HDD   --- verificar se o servidor possui um HDD ou SSD
+
+tar -cvzf projetos.tar.gz Projetos/ --- compactar arquivo como tar.gz
+
+tar -xvzf projetos.tar.gz --- desconpactar arquivo como tar.gz
+
+------ SHEL SCRIPT ------
+
+As principais opções utilizadas são:
+
+Análises de Arquivos e Diretórios
+
+-f Arquivo : Verifica se o arquivo indicado existe e é um arquivo regular
+
+-d Arquivo : Verifica se o caminho indicado é um diretório existente
+
+-r Arquivo : Verificar se há permissão de leitura
+
+-w Arquivo : Verificar se há permissão de escrita
+
+-x Arquivo : Verificar se há permissão de execução
+
+-s Arquivo : Verifica se o tamanho do arquivo é maior que 0
+
+Comparação de Strings
+
+-n $VAR1 : Usado com variáveis, verifica se o tamanho do conteúdo da variável é diferente de zero (nonzero)
+
+-z $VAR1 : Usado com variáveis, verifica se o tamanho do conteúdo da variável é zero
+
+$VAR1 : Usado com variáveis, indica verdadeiro se $VAR1 não for nulo
+
+String1 = String2 : Compara se as duas strings são iguais
+
+String1 != String2 : Verifica se as duas strings são diferentes
+
+Comparação de Valores Numéricos
+
+Valor1 -eq Valor2 : Verdadeiro se os 2 valores forem iguais (equal)
+
+Valor1 -ne Valor2 : Verdadeiro se os 2 valores forem diferentes (not equal)
+
+Valor1 -gt Valor2 : Verdadeiro se o Valor1 for maior que Valor2 (greater than)
+
+Valor1 -ge Valor2 : Verdadeiro se o Valor1 for maior ou igual que Valor2 (greater or equal)
+
+Valor1 -lt Valor2 : Verdadeiro se o Valor1 for menor que Valor2 (less than)
+
+Valor1 -le Valor2 : Verdadeiro se o Valor1 for menor ou igual que Valor2 (less or equal)
+
+Negação
+
+! : A presença da exclamação indica a negação da expressão a seguir
+
+Comandos
+
+seq -- sequência de numeros ex: seq 10 ==> de 1 a 10
+
+expr -- executa conforme a expressão ex: 1 + 3 ==> 4
+
+----- Verificar consumo de memoria por processo -----
+
+#!/bin/bash
+
+ps axo rss,comm,pid \
+| awk '{ proc_list[$2]++; proc_list[$2 "," 1] += $1; } \
+END { for (proc in proc_list) { printf("%d\t%s\n", \
+proc_list[proc "," 1],proc); }}' \
+| sort -n \
+| tail -n 10 \
+| sort -rn \
+| awk '{$1/=1024;printf "%.0fMB\t",$1}{print $2}'
+
+
+----- Instalar ambiente grafico em linux terminal -----
+
+tasksel
+
+----- Resolver problema de ecodificação linux --------
+
+sed -i '1s/^.*#//;s/\r$//' brokenScript
+
+
+------ Listar JAVA para instalação --------
+
+apt search openjdk
+
+------- Excluir arquivos com 0bytes
+
+find . -type f -size 0b -print -- listar
+
+find . -type f -size 0b -delete -- remover
+
+----- operadores do SH específicos
+
+-eq (Igualdade)
+-le (Menor ou igual)
+-lt (Menor que)
+-ge (Maior ou igual)
+-gt (Maior que)
+
+----- Novo SWAP
+
+Como eu queria 6G de swap, count=6291456 (1024x1024x6)
+
+dd if=/dev/zero of=/root/swap100G bs=1024 count=104857600
+
+Agora vamos definir esse arquivo para ser utilizado como swap.
+
+mkswap swap100G
+
+Configurar as permissões corretas. Dessa forma garantimos que somente o root poderá ler/escrever nesse arquivo de swap.
+
+chown root:root swap100G
+
+chmod 0600 swap100G
+
+Finalmente, vamos ativar esse arquivo como espaço de swap.
+
+swapon swap100G
+
+Colocar a swap100G como permanente 
+
+/root/swap100G swap swap defaults 0 0
+
+Colocar partição montada como permanente 
+
+/dev/sdb        /dados           ext3    defaults         1        2
+/dev/sdc        /BKP_DEDICADOS           ext3    defaults         1        2
+
+#Montagem com suporte bloco corrompido
+#solução para ext2
+e2fsck -y /dev/sda2
+#solução para ext3
+fsck.ext3 /dev/hda1
+https://www.vivaolinux.com.br/artigo/Checando-seu-sistema-de-arquivos-com-fsck
+
+#Usuário SUDO pelo WinSCP
+sudo echo "seu-usuario ALL=NOPASSWD: /usr/lib/sftp-server" >> /etc/sudoers
+#Dentro do WinSCP, rode o SFTP com o parâmetro
+sudo usr/lib/sftp-server
+https://aleatitus.me/gerenciando-arquivos-como-root-pelo-winscp/
+
+---- Quando os comandos linux não funcionam como "adduser"
+--Exporte a variável path
+
+export PATH="$PATH:/sbin:/usr/sbin:usr/local/sbin"
