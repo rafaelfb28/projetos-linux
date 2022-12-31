@@ -142,11 +142,30 @@ find . -type f -size 0b -delete -- remover
 
 ----- operadores do SH específicos
 
--eq (Igualdade)
--le (Menor ou igual)
--lt (Menor que)
--ge (Maior ou igual)
--gt (Maior que)
+Testes em variáveis:
+
+-lt	Número é menor que (LessThan)
+-gt	Número é maior que (GreaterThan)
+-le	Número é menor igual (LessEqual)
+-ge	Número é maior igual (GreaterEqual)
+-eq	Número é igual (EQual)
+-ne	Número é diferente (NotEqual)
+=	String é igual
+!=	String é diferente
+-n	String não é nula
+-z	String é nula
+
+
+Testes em arquivos:
+
+-d	É um diretório
+-f	É um arquivo normal
+-s	O tamanho do arquivo é maior que zero
+-r	É arquivo tem permissão de leitura
+-w	O arquivo tem permissão de escrita
+-nt	O arquivo é mais recente (NewerThan)
+-ot	O arquivo é mais antigo (OlderThan)
+-ef	O arquivo é o mesmo (EqualFile)
 
 ----- Novo SWAP
 
