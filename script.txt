@@ -1,0 +1,1 @@
+delete from codigos_ajustes_doc_fiscal a where a.cod_aj_doc_fiscal = 'AA10000001';
