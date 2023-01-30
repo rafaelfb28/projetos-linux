@@ -1,52 +1,36 @@
 #!/bin/bash
 
-#Recebendo e tratando o parametro que vem do arquivo primario
-versao=$(echo $1 | cut -d'|' -f1);
+versao=$(echo $1| cut -d'|' -f1);
 cluster=$(echo $1 | cut -d'|' -f2);
 porta=$(echo $1 | cut -d'|' -f3);
 diretorio_mnt=$(echo $1 | cut -d'|' -f4);
 diretorio_remoto=$(echo $1 | cut -d'|' -f5);
-log=$porta"_"$cluster.log;
-porta_cluster=$porta"_"$cluster;
+dataHoje=$(date +%d-%m-%y);
 
-#Entrando no diretorio principal
-cd /mnt/STORAGE/
+#echo "Porta: $porta";
+#echo "";
+#echo "$(date +%H:%M:%S) - Inicio do processo de backup com data $(date +%d-%m-%y)" >> /home/bkp_dedicado/$porta.log;
+rm -rf /mnt/STORAGE/$diretorio_mnt/$dataHoje/$porta;
+mkdir /mnt/STORAGE/$diretorio_mnt/$dataHoje/$porta;
 
-DIR_LOGS='/var/lib/postgresql/$versao/$cluster/pg_wal'
-LAST_LOG=$(cd ${DIR_LOGS} ; ls -rt *.backup | tail -1)
-
-echo "" >> /home/bkp_dedicado/$log;
-echo "$(date +%H:%M:%S) - Inicio do processo de backup com data $(date +%d-%m-%y)" >> /home/bkp_dedicado/$log;
-echo "" >> /home/bkp_dedicado/$log;
-echo "$(date +%H:%M:%S) - Copiando 'webswing.config'" >> /home/bkp_dedicado/$log;
-sshpass -p "user_bkp_2022" scp -r -P 4922 /home/webswing/webswing.config user_bkp@189.15.3.32:/BKP_DEDICADOS/$diretorio_remoto/ &>> /home/bkp_dedicado/$log;
-#echo "" >> /home/bkp_dedicado/$log;
-#echo "$(date +%H:%M:%S) - Criando a pasta $porta" >> /home/bkp_dedicado/$log;
-#mkdir $diretorio_mnt/$porta"_"$cluster &>> /home/bkp_dedicado/$log;
-cd $diretorio_mnt/ &>> /home/bkp_dedicado/$log;
-echo "" >> /home/bkp_dedicado/$log;
-echo "$(date +%H:%M:%S) - Limpando LOG WAL antigo" >> /home/bkp_dedicado/$log;
-/usr/lib/postgresql/$versao/bin/pg_archivecleanup "${DIR_LOGS}" "${LAST_LOG}" &>> /home/bkp_dedicado/$log;
-echo "" >> /home/bkp_dedicado/$log;
-echo "$(date +%H:%M:%S) - Realizando o backup" >> /home/bkp_dedicado/$log;
-PGPASSWORD="10100306@" /usr/lib/postgresql/$versao/bin/pg_basebackup -h127.0.0.1 -p $porta -U sisaudconadaoavestruz@0620181.0.31 -D $porta_cluster -Ft -z -P &>> /home/bkp_dedicado/$log;
-var=$(echo $?);
-if [ $var == 0 ];
+if [ $porta == '5458' ];
 then
-	echo "" >> /home/bkp_dedicado/$log;
-	echo "$(date +%H:%M:%S) - Backup realizado com sucesso" >> /home/bkp_dedicado/$log;
-	echo "" >> /home/bkp_dedicado/$log;
-	#cd ..;		
-	echo "$(date +%H:%M:%S) - Download da porta para o servidor local" >> /home/bkp_dedicado/$log;
-    sshpass -p "user_bkp_2022" scp -rp -P 4922 $porta_cluster user_bkp@189.15.3.32:/BKP_DEDICADOS/$diretorio_remoto/ &>> /home/bkp_dedicado/$log;	
-	#echo "" >> /home/bkp_dedicado/$log;
-	#echo "$(date +%H:%M:%S) - Removendo porta" >> /home/bkp_dedicado/$log;
-	#rm -rf $porta &>> /home/bkp_dedicado/$log;
-elif [ $var == 1 ] || [ $var ==2 ]:
-then
-	echo "" >> /home/bkp_dedicado/$log;
-	echo "$(date +%H:%M:%S) - Erro ao realizar o Backup" >> /home/bkp_dedicado/$log;
-fi;
-echo "" >> /home/bkp_dedicado/$log;
-echo "$(date +%H:%M:%S) - Fim do processo de backup com data $(date +%d-%m-%y)" >> /home/bkp_dedicado/$log;
-
+	#echo "Entrei na porta $porta" >> /home/bkp_dedicado/$porta"_teste".log
+	nohup /home/bkp_dedicado/cooperativoPlanning.sh &
+		
+	for base in $(PGPASSWORD="10100306@" psql -h localhost -p $porta -U sisaudconadaoavestruz@0620181.0.31 -d postgres -c "select datname from pg_database where datname ilike '%sped_%' and SUBSTRING(datname, 6, 4)::numeric not BETWEEN 1::numeric and 400::numeric order by SUBSTRING(datname, 6, 4)::numeric" | grep -v datname | grep -v - | grep -v row)
+	do
+		PGPASSWORD="10100306@" /usr/lib/postgresql/$versao/bin/pg_dump --host localhost --port $porta --username "sisaudconadaoavestruz@0620181.0.31"  --format custom --blobs --file "/mnt/STORAGE/$diretorio_mnt/$dataHoje/$porta/$base.backup" "$base" &>> /dev/null
+		#echo "Base: $base | Porta: $porta | Versão: $versao";
+	done
+else
+	#echo "Não entrei na porta 5458" >> /home/bkp_dedicado/$porta"_teste".log
+	for base in $(PGPASSWORD="10100306@" psql -h localhost -p $porta -U sisaudconadaoavestruz@0620181.0.31 -d postgres -c "select a.datname from (select datname from pg_database where datname ilike '%sped%')a order by case when a.datname not in('sped','template_sped') then SUBSTRING(datname, 6, 4)::numeric end" | grep -v datname | grep -v - | grep -v row)
+	do
+		PGPASSWORD="10100306@" /usr/lib/postgresql/$versao/bin/pg_dump --host localhost --port $porta --username "sisaudconadaoavestruz@0620181.0.31"  --format custom --blobs --file "/mnt/STORAGE/$diretorio_mnt/$dataHoje/$porta/$base.backup" "$base" &>> /dev/null
+		#echo "Base: $base | Porta: $porta | Versão: $versao";
+	done
+fi
+#echo "";
+#echo "$(date +%H:%M:%S) - Fim do processo de backup com data $(date +%d-%m-%y)" >> /home/bkp_dedicado/$porta.log;
+#echo "";
