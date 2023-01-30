@@ -33,11 +33,21 @@ do
 		find -mtime +1 -delete
 	#Inicio da criação das pastas de BKP dos servidores DEDICADOS OBS(O SCP responsavel por jogar o BKP nas pastas está em cada dedicado)
         else
-                cd /BKP_DEDICADOS/$diretorio/
-        #        rm -rf $hoje
-        #        mkdir $hoje
-        #        chmod -R 777 $hoje
-		#find -mtime +1 -delete
+			#mkdir /BKP_DEDICADOS/$diretorio/$(date +%d-%m-%y --date="-1 day")
+			#chmod -R 777 /BKP_DEDICADOS/$diretorio/$(date +%d-%m-%y --date="-1 day")
+			#mv /BKP_DEDICADOS/$diretorio/5* /BKP_DEDICADOS/$diretorio/$(date +%d-%m-%y --date="-1 day")
+			
+			dataDeletada=$(date +%d-%m-%y --date="-4 day")
+			#echo "Servidor: $diretorio"
+			#echo "Data a ser deletada: $dataDeletada"
+			for pasta in $(ls -l /BKP_DEDICADOS/$diretorio/ | cut -d':' -f2 | grep -v total | cut -d' ' -f2)
+			do
+				if [ $pasta == $dataDeletada ];
+				then
+					#echo "Deletei a pasta $pasta"
+					rm -rf /BKP_DEDICADOS/$diretorio/$pasta
+				fi
+			done
         fi
 done
 
