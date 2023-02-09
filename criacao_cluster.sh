@@ -1,6 +1,6 @@
 #!/bin/bash
 #Automacao criacao de cluster
-TIME=3
+TIME=4
 clear
 while true;do
 echo " "
@@ -20,11 +20,36 @@ case $opcao in
         1)      clear
 		pg_lsclusters
 		;;
-	2)      echo "Digite o nome do cluster EX: '000111_saam': "
+	2)      clear
+		echo "Informacoes gerais do cluster."
+		echo " "
+		echo "Digite o nome do cluster EX: '000111_saam': "
                 read cluster
 		echo " "
 		echo "Digite a versao do banco: "
 		read versao
+		clear
+		echo "Informacoes para configuracao do banco."
+		echo " "
+		echo "Informe a alocacao de memoria para continuar:
+(EX: 10, 14, ou MANUAL)"
+                echo " "
+                echo "Memoria escolhida: "
+                read memoria
+		echo " "
+		clear
+		echo "Informacoes para configuracao do BKP."
+		echo " "
+		echo "Informar o numero do servidor EX(1, 2, 3 ,4 ,5): "
+                read servidor
+		clear
+		echo "Informacoes para cadastro no banco de clientes LOCAWEB."
+		echo " "
+		echo "Informe o nome da empresa: "
+                read nomeEmpresa
+                echo " "
+                echo "Informe o limite de empresas: "
+                read limite
 		echo " "
                 pg_createcluster $versao $cluster
 		porta=$(pg_lsclusters | grep down | awk '{print $3}')
@@ -32,22 +57,14 @@ case $opcao in
 		sed -i 's/32            md5/32            trust/' /etc/postgresql/$versao/$cluster/pg_hba.conf
 		sed -i 's/128                 md5/128                 trust/' /etc/postgresql/$versao/$cluster/pg_hba.conf
 		pg_ctlcluster $versao $cluster start
-		echo " "
 		clear
 		echo "Alterando a senha do usuario postgres ..."
 		echo " "
                 sleep $TIME
 		psql -h localhost -p $porta -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD '10100306@';"
-		echo " "
 		clear
-		echo "Informe a alocacao de memoria para continuar:
-(versao do banco padrao 10, para outras versoes escolha Outros,ex: 10, 14, Outros)"
-		echo " "
-		echo "Memoria escolhida: "
-		read memoria
 		if [ $memoria == '10' ];
                        then     
-				echo " "
                                 echo "Alterando variaveis do banco ..."
                                 echo " "
 				sleep $TIME
@@ -71,7 +88,6 @@ case $opcao in
 				
 		elif [ $memoria == '14' ];
                         then
-                                echo " "
                                 echo "Alterando variaveis do banco ..."
                                 echo " "
 				sleep $TIME
@@ -92,8 +108,7 @@ case $opcao in
                                 psql -h localhost -p $porta -U postgres -d postgres -c "ALTER SYSTEM SET enable_nestloop = 'off';"
                                 psql -h localhost -p $porta -U postgres -d postgres -c "ALTER SYSTEM SET log_line_prefix = '%t [%p]: [%l-1] user=%u saam=%a,db=%d ';"
 				clear
-				
-		else [ $memoria == 'Outros' ];
+		else [ $memoria == 'MANUAL' ];
 				echo "Digite o valor para variavel shared_buffers: "
                 		read sharedeBuffers
 				echo " "
@@ -131,10 +146,8 @@ case $opcao in
 					fi
 				fi
                                 sleep $TIME
-                		echo " "
 				clear
-				 
-
+		pg_ctlcluster $versao $cluster restart
 		echo "Criando usuarios no banco ..."
 		echo " "
 		psql -h localhost -p $porta -U postgres -d postgres -c "CREATE ROLE \"sisaudconjacopeixe@0520201.0.34\" LOGIN PASSWORD '10100306@' SUPERUSER CREATEDB CREATEROLE REPLICATION VALID UNTIL 'infinity';"
@@ -150,7 +163,6 @@ case $opcao in
 		psql -h localhost -p $porta -U postgres -d postgres -c "CREATE ROLE \"sisaudcondavigaviao@1020222.0.00\" LOGIN ENCRYPTED PASSWORD '10100306@' SUPERUSER CREATEDB CREATEROLE VALID UNTIL 'infinity';"
 		psql -h localhost -p $porta -U postgres -d postgres -c "CREATE ROLE \"sisaudconevagato@1120181.0.32\" LOGIN PASSWORD '10100306@' SUPERUSER CREATEDB CREATEROLE REPLICATION VALID UNTIL 'infinity';"
 		sleep $TIME
-		echo " "
 		clear
                 echo "Alterando codificao do banco..."
 		echo " "
@@ -160,44 +172,41 @@ case $opcao in
                 psql -h localhost -p $porta -U postgres -d postgres -c "ALTER DATABASE template0b RENAME TO template0;"
                 psql -h localhost -p $porta -U postgres -d postgres -c "UPDATE pg_database SET datistemplate = true WHERE datname = 'template0';"
                 sleep $TIME
-		echo " "
 		clear
                 echo "Criando base ..."
 		echo " "
 		psql -h localhost -p $porta -U postgres -d postgres -c "CREATE DATABASE sped TEMPLATE template0 OWNER \"sisaudconadaoavestruz@0620181.0.31\" ENCODING 'WIN1252';"
                 psql -h localhost -p $porta -U postgres -d postgres -c "CREATE DATABASE template_sped TEMPLATE template0 OWNER \"sisaudconadaoavestruz@0620181.0.31\" ENCODING 'WIN1252';"
 		sleep $TIME
+		clear
 		echo "Atualizando arquivo SPEDAO ..."
                 echo " "
 		sshpass -p "user_bkp_2022" scp -rp -P 4922 user_bkp@saamauditoria.ddns.com.br:/BKP_DEDICADOS/BKP_SPEDAO/$(date +%d-%m-%y --date="-1 day")/sped.backup /home/SPEDAO/
                 sleep $TIME
+		clear
 		echo "Restaurando arquivo sped ..."
                 echo " "
                 PGPASSWORD="10100306@" /usr/bin/pg_restore  --host localhost  --port $porta --username "sisaudconsetetatu@0820211.0.35"  --dbname "sped"  --verbose  --jobs=20  "/home/SPEDAO/sped.backup"
 		PGPASSWORD="10100306@" /usr/bin/pg_restore  --host localhost  --port $porta --username "sisaudconsetetatu@0820211.0.35"  --dbname "template_sped"  --verbose  --jobs=20  "/home/SPEDAO/sped.backup"                
 		sleep $TIME
-		echo " "
                 clear
 		echo "Alterando ID do cliente no banco ..."
                 echo " "
-		echo "Digite o numero do serial:"
-		read serial
-                psql -h localhost -p $porta -U postgres -d sped -c "update reg_1102 set num_reg='${cluster:0:6}', num_serie_ecf='$serial';"
+		psql -h localhost -p $porta -U postgres -d sped -c "update reg_1102 set num_reg='${cluster:0:6}', num_serie_ecf='$(echo  -n  date +%m%Y  | md5sum | cut -d'-' -f1)';"
+		echo " "
 		sed -i 's/local   all             all                                     trust/local   all             all                                     peer/' /etc/postgresql/$versao/$cluster/pg_hba.conf
                 sed -i 's/32            trust/32            md5/' /etc/postgresql/$versao/$cluster/pg_hba.conf
                 sed -i 's/128                 trust/128                 md5/' /etc/postgresql/$versao/$cluster/pg_hba.conf
 		pg_ctlcluster $versao $cluster restart
-                echo "Informar o numero do servidor EX(1, 2, 3 ou 4): "
-		read servidor
+		clear
 		echo "Inserindo dados do cluster na listagem de portas"
-		sed -i "\$a$versao|$cluster|$porta|SRV$servidor|BKP_DEDICADO_$servidor" /home/bkp_dedicado/portas.txt
+		echo " "
+		#sed -i "\$a$versao|$cluster|$porta|SRV$servidor|BKP_DEDICADO_$servidor" /home/bkp_dedicado/portas.txt
+		echo "\$versao|$cluster|$porta|SRV$servidor|BKP_DEDICADO_$servidor" >> /home/bkp_dedicado/portas.txt
 		sleep $TIME
-		echo "Informe o nome da empresa: "
-		read nomeEmpresa
-		echo "Informe o limite de empresas: "
-		read limite
+		clear
 		echo "Inserindo dados do cliente no banco da LOCAWEB"
-		PGPASSWORD="cr10100306@" psql -h saam_clientes.postgresql.dbaas.com.br -p 5432 -U saam_clientes -d saam_clientes -c "INSERT INTO public.identificadors(id, situacao, limite_empresas, data_insercao, porta, ip_servidor_web, obs, ativar_pva_nuvem, obs_pva_nuvem) VALUES ('${cluster:0:6}', 1, $limite, now(), '$porta', '192.168.0.1', '$nomeEmpresa', false, '');"
+		PGPASSWORD="cr10100306@" psql -h saam_clientes.postgresql.dbaas.com.br -p 5432 -U saam_clientes -d saam_clientes -c "INSERT INTO public.identificadors(id, situacao, limite_empresas, data_insercao, porta, ip_servidor_web, obs, ativar_pva_nuvem, obs_pva_nuvem) select b.* from identificadors a right join (select '${cluster:0:6}'::text as id, 1::SMALLINT as situacao, $limite::INTEGER as limite_empresas, now() as data_insercao, '$porta'::text as porta, '$(hostname -I)'::text as ip_servidor_web, '$nomeEmpresa'::text as obs, false, ''::text as obs_pva_nuvem)b on a.id = b.id and a.porta = b.porta and a.ip_servidor_web = b.ip_servidor_web where a.id is null;"
 		clear
 		pg_lsclusters
 		;;
