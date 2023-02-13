@@ -1,6 +1,23 @@
 #!/bin/bash
 #Automacao criacao de cluster
+#Inicio Variveis Globais
 TIME=4
+if [ $(hostname -I) == '187.108.195.107' ];
+	then
+		   indicadorBKP=1
+	elif [ $(hostname -I) == '187.108.203.29' ];
+	then
+			indicadorBKP=2
+	elif [ $(hostname -I) == '187.108.200.43' ];
+	then
+			 indicadorBKP=3
+	elif [ $(hostname -I) == '187.108.200.220' ];
+	then   
+			indicadorBKP=4
+	else		
+			indicadorBKP=5
+fi
+#Fim Variveis Globais
 clear
 while true;do
 echo " "
@@ -21,15 +38,11 @@ case $opcao in
 		pg_lsclusters
 		;;
 	2)      clear
-		echo "Informacoes gerais do cluster."
-		echo " "
 		echo "Digite o nome do cluster EX: '000111_saam': "
                 read cluster
 		echo " "
 		echo "Digite a versao do banco: "
-		read versao
-		clear
-		echo "Informacoes para configuracao do banco."
+		read versao	
 		echo " "
 		echo "Informe a alocacao de memoria para continuar:
 (EX: 10, 14, ou MANUAL)"
@@ -37,20 +50,13 @@ case $opcao in
                 echo "Memoria escolhida: "
                 read memoria
 		echo " "
-		clear
-		echo "Informacoes para configuracao do BKP."
-		echo " "
-		echo "Informar o numero do servidor EX(1, 2, 3 ,4 ,5): "
-                read servidor
-		clear
-		echo "Informacoes para cadastro no banco de clientes LOCAWEB."
-		echo " "
 		echo "Informe o nome da empresa: "
                 read nomeEmpresa
                 echo " "
                 echo "Informe o limite de empresas: "
                 read limite
 		echo " "
+		clear
                 pg_createcluster $versao $cluster
 		porta=$(pg_lsclusters | grep down | awk '{print $3}')
                 sed -i 's/local   all             all                                     peer/local   all             all                                     trust/' /etc/postgresql/$versao/$cluster/pg_hba.conf
@@ -173,7 +179,7 @@ case $opcao in
                 psql -h localhost -p $porta -U postgres -d postgres -c "UPDATE pg_database SET datistemplate = true WHERE datname = 'template0';"
                 sleep $TIME
 		clear
-                echo "Criando base ..."
+                echo "Criando as bases SPED e TEMPLATE_SPED ..."
 		echo " "
 		psql -h localhost -p $porta -U postgres -d postgres -c "CREATE DATABASE sped TEMPLATE template0 OWNER \"sisaudconadaoavestruz@0620181.0.31\" ENCODING 'WIN1252';"
                 psql -h localhost -p $porta -U postgres -d postgres -c "CREATE DATABASE template_sped TEMPLATE template0 OWNER \"sisaudconadaoavestruz@0620181.0.31\" ENCODING 'WIN1252';"
@@ -182,7 +188,6 @@ case $opcao in
 		echo "Atualizando arquivo SPEDAO ..."
                 echo " "
 		sshpass -p "user_bkp_2022" scp -rp -P 4922 user_bkp@saamauditoria.ddns.com.br:/BKP_DEDICADOS/BKP_SPEDAO/$(date +%d-%m-%y --date="-1 day")/sped.backup /home/SPEDAO/
-                sleep $TIME
 		clear
 		echo "Restaurando arquivo sped ..."
                 echo " "
@@ -192,7 +197,7 @@ case $opcao in
                 clear
 		echo "Alterando ID do cliente no banco ..."
                 echo " "
-		psql -h localhost -p $porta -U postgres -d sped -c "update reg_1102 set num_reg='${cluster:0:6}', num_serie_ecf='$(echo  -n  date +%m%Y  | md5sum | cut -d'-' -f1)';"
+		psql -h localhost -p $porta -U postgres -d sped -c "update reg_1102 set num_reg='${cluster:0:6}', num_serie_ecf='$(echo ${cluster:0:6}$(date +%m%Y) | md5sum | cut -d'-' -f1)';"
 		echo " "
 		sed -i 's/local   all             all                                     trust/local   all             all                                     peer/' /etc/postgresql/$versao/$cluster/pg_hba.conf
                 sed -i 's/32            trust/32            md5/' /etc/postgresql/$versao/$cluster/pg_hba.conf
@@ -201,19 +206,19 @@ case $opcao in
 		clear
 		echo "Inserindo dados do cluster na listagem de portas"
 		echo " "
-		#sed -i "\$a$versao|$cluster|$porta|SRV$servidor|BKP_DEDICADO_$servidor" /home/bkp_dedicado/portas.txt
-		echo "\$versao|$cluster|$porta|SRV$servidor|BKP_DEDICADO_$servidor" >> /home/bkp_dedicado/portas.txt
+		echo "$versao|$cluster|$porta|SRV$indicadorBKP|BKP_DEDICADO_$indicadorBKP" >> /home/bkp_dedicado/portas.txt
 		sleep $TIME
 		clear
 		echo "Inserindo dados do cliente no banco da LOCAWEB"
 		PGPASSWORD="cr10100306@" psql -h saam_clientes.postgresql.dbaas.com.br -p 5432 -U saam_clientes -d saam_clientes -c "INSERT INTO public.identificadors(id, situacao, limite_empresas, data_insercao, porta, ip_servidor_web, obs, ativar_pva_nuvem, obs_pva_nuvem) select b.* from identificadors a right join (select '${cluster:0:6}'::text as id, 1::SMALLINT as situacao, $limite::INTEGER as limite_empresas, now() as data_insercao, '$porta'::text as porta, '$(hostname -I)'::text as ip_servidor_web, '$nomeEmpresa'::text as obs, false, ''::text as obs_pva_nuvem)b on a.id = b.id and a.porta = b.porta and a.ip_servidor_web = b.ip_servidor_web where a.id is null;"
+		systemctl restart saam
 		clear
 		pg_lsclusters
 		;;
         3)      clear
 		pg_lsclusters 
 		echo " "
-		echo "Digite o nome do cluster a ser excluido: "
+		echo "Digite o NOME do cluster a ser excluido: "
 		read cluster
 		echo " "
 		echo -e "\e[00;31mVoce deseja realmente excluir o cluster $cluster (SIM) (NAO):\e[00m  "
@@ -222,13 +227,23 @@ case $opcao in
 		if [ $decisao == 'SIM' ];
 		then
 			pg_ctlcluster $versao $cluster stop
-			echo " "
+			echo " "	
+						clear
                         echo "Deletando cluster $cluster ..."
                         sleep $TIME
 			pg_dropcluster $versao $cluster
-			clear
-			pg_lsclusters
 		fi
+		clear
+		echo "Removendo dados do cluster da listagem de portas"
+		echo > /tmp/aux.txt && grep -v "$cluster" /home/bkp_dedicado/portas.txt > /tmp/aux.txt && cat /tmp/aux.txt > /home/bkp_dedicado/portas.txt
+		sleep $TIME
+		clear
+		echo "Removendo dados do cliente no banco da LOCAWEB"
+		PGPASSWORD="cr10100306@" psql -h saam_clientes.postgresql.dbaas.com.br -p 5432 -U saam_clientes -d saam_clientes -c "delete from identificadors where id = '${cluster:0:6}' and ip_servidor_web = '$(hostname -I)';"
+		sleep $TIME
+		systemctl restart saam
+		clear
+		pg_lsclusters
                 ;;
         4)	clear
 		pg_lsclusters
@@ -239,11 +254,26 @@ case $opcao in
                 echo "Digite o novo nome do cluster"
                 read novoCluster
                 versao=$(pg_lsclusters | grep $cluster | awk '{print $1}')
+				porta=$(pg_lsclusters | grep $cluster | awk '{print $3}')
 		echo " "
+				clear
                 echo "Renomeando o $cluster para $novoCluster ..."
-		echo " "
-                sleep $TIME
+		echo " " 
 		pg_renamecluster $versao $cluster $novoCluster
+		clear
+		echo "Alterando dados do cliente no banco da LOCAWEB"
+		PGPASSWORD="cr10100306@" psql -h saam_clientes.postgresql.dbaas.com.br -p 5432 -U saam_clientes -d saam_clientes -c "update identificadors set id = '${novoCluster:0:6}' where id = '${cluster:0:6}' and ip_servidor_web = '$(hostname -I)';"
+		sleep $TIME
+		clear
+		echo "Alterando dados do cluster na listagem de portas"
+		sed -i "s/$versao|$cluster|$porta|SRV$indicadorBKP|BKP_DEDICADO_$indicadorBKP/$versao|$novoCluster|$porta|SRV$indicadorBKP|BKP_DEDICADO_$indicadorBKP/" /home/bkp_dedicado/portas.txt
+		sleep $TIME
+		clear
+		echo "Alterando ID e SERIAL do cliente no banco ..."
+                echo " "
+		PGPASSWORD="10100306@" psql -h localhost -p $porta -U sisaudconadaoavestruz@0620181.0.31 -d sped -c "update reg_1102 set num_reg='${novoCluster:0:6}', num_serie_ecf='$(echo ${novoCluster:0:6}$(date +%m%Y) | md5sum | cut -d'-' -f1)' where num_reg = '${cluster:0:6}';"
+		sleep $TIME
+		systemctl restart saam
 		clear
                 pg_lsclusters
                 ;;
